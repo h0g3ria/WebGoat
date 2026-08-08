@@ -9,9 +9,9 @@ import static org.owasp.webgoat.container.assignments.AttackResultBuilder.succes
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -54,11 +54,15 @@ public class CSRFFeedback implements AssignmentEndpoint {
     } catch (IOException e) {
       return failed(this).feedback(ExceptionUtils.getStackTrace(e)).build();
     }
-    boolean correctCSRF =
-        requestContainsWebGoatCookie(request.getCookies())
-            && request.getContentType().contains(MediaType.TEXT_PLAIN_VALUE);
-    correctCSRF &= hostOrRefererDifferentHost(request);
-    if (correctCSRF) {
+    boolean validRequest =
+        request.getContentType() != null
+            && request
+                .getContentType()
+                .split(";", 2)[0]
+                .trim()
+                .equalsIgnoreCase(MediaType.APPLICATION_JSON_VALUE)
+            && isSameOrigin(request);
+    if (validRequest) {
       String flag = UUID.randomUUID().toString();
       userSessionData.setValue("csrf-feedback", flag);
       return success(this).feedback("csrf-feedback-success").feedbackArgs(flag).build();
@@ -76,25 +80,31 @@ public class CSRFFeedback implements AssignmentEndpoint {
     }
   }
 
-  private boolean hostOrRefererDifferentHost(HttpServletRequest request) {
-    String referer = request.getHeader("Referer");
-    String host = request.getHeader("Host");
-    if (referer != null) {
-      return !referer.contains(host);
-    } else {
-      return true;
+  private boolean isSameOrigin(HttpServletRequest request) {
+    String source = request.getHeader("Origin");
+    if (source == null) {
+      source = request.getHeader("Referer");
+    }
+    if (source == null) {
+      return false;
+    }
+
+    try {
+      URI sourceUri = URI.create(source);
+      int sourcePort =
+          sourceUri.getPort() == -1 ? defaultPort(sourceUri.getScheme()) : sourceUri.getPort();
+      int requestPort =
+          request.getServerPort() == -1 ? defaultPort(request.getScheme()) : request.getServerPort();
+      return request.getScheme().equalsIgnoreCase(sourceUri.getScheme())
+          && request.getServerName().equalsIgnoreCase(sourceUri.getHost())
+          && requestPort == sourcePort;
+    } catch (IllegalArgumentException e) {
+      return false;
     }
   }
 
-  private boolean requestContainsWebGoatCookie(Cookie[] cookies) {
-    if (cookies != null) {
-      for (Cookie c : cookies) {
-        if (c.getName().equals("JSESSIONID")) {
-          return true;
-        }
-      }
-    }
-    return false;
+  private int defaultPort(String scheme) {
+    return "https".equalsIgnoreCase(scheme) ? 443 : 80;
   }
 
   /*
