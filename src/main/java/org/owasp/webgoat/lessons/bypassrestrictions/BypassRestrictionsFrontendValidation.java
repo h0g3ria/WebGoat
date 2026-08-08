@@ -38,25 +38,25 @@ public class BypassRestrictionsFrontendValidation implements AssignmentEndpoint 
     if (error > 0) {
       return failed(this).build();
     }
-    if (field1.matches(regex1)) {
+    if (!field1.matches(regex1)) {
       return failed(this).build();
     }
-    if (field2.matches(regex2)) {
+    if (!field2.matches(regex2)) {
       return failed(this).build();
     }
-    if (field3.matches(regex3)) {
+    if (!field3.matches(regex3)) {
       return failed(this).build();
     }
-    if (field4.matches(regex4)) {
+    if (!field4.matches(regex4)) {
       return failed(this).build();
     }
-    if (field5.matches(regex5)) {
+    if (!field5.matches(regex5)) {
       return failed(this).build();
     }
-    if (field6.matches(regex6)) {
+    if (!field6.matches(regex6)) {
       return failed(this).build();
     }
-    if (field7.matches(regex7)) {
+    if (!field7.matches(regex7)) {
       return failed(this).build();
     }
     return success(this).build();
