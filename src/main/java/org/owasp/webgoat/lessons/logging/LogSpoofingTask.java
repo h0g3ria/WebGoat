@@ -24,13 +24,19 @@ public class LogSpoofingTask implements AssignmentEndpoint {
     if (Strings.isEmpty(username)) {
       return failed(this).output(username).build();
     }
-    username = username.replace("\n", "<br/>");
+    String logOutput = username.replace('\r', '_').replace('\n', '_');
     if (username.contains("<p>") || username.contains("<div>")) {
       return failed(this).output("Try to think of something simple ").build();
     }
-    if (username.indexOf("<br/>") < username.indexOf("admin")) {
-      return success(this).output(username).build();
+    int carriageReturn = username.indexOf('\r');
+    int lineFeed = username.indexOf('\n');
+    int lineBreak =
+        carriageReturn < 0
+            ? lineFeed
+            : lineFeed < 0 ? carriageReturn : Math.min(carriageReturn, lineFeed);
+    if (lineBreak >= 0 && lineBreak < username.indexOf("admin")) {
+      return success(this).output(logOutput).build();
     }
-    return failed(this).output(username).build();
+    return failed(this).output(logOutput).build();
   }
 }
