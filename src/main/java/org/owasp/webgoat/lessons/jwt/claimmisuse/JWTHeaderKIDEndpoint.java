@@ -67,15 +67,20 @@ public class JWTHeaderKIDEndpoint implements AssignmentEndpoint {
                     new SigningKeyResolverAdapter() {
                       @Override
                       public byte[] resolveSigningKeyBytes(JwsHeader header, Claims claims) {
-                        final String kid = (String) header.get("kid");
+                        final Object kidHeader = header.get("kid");
+                        if (!(kidHeader instanceof String kid)
+                            || !kid.matches("[A-Za-z0-9_-]{1,20}")) {
+                          return null;
+                        }
                         try (var connection = dataSource.getConnection()) {
-                          ResultSet rs =
-                              connection
-                                  .createStatement()
-                                  .executeQuery(
-                                      "SELECT key FROM jwt_keys WHERE id = '" + kid + "'");
-                          while (rs.next()) {
-                            return TextCodec.BASE64.decode(rs.getString(1));
+                          try (var statement =
+                              connection.prepareStatement("SELECT key FROM jwt_keys WHERE id = ?")) {
+                            statement.setString(1, kid);
+                            try (ResultSet rs = statement.executeQuery()) {
+                              if (rs.next()) {
+                                return TextCodec.BASE64.decode(rs.getString(1));
+                              }
+                            }
                           }
                         } catch (SQLException e) {
                           errorMessage[0] = e.getMessage();
