@@ -22,22 +22,14 @@ public class BypassRestrictionsFieldRestrictions implements AssignmentEndpoint {
   public AttackResult completed(
       @RequestParam String select,
       @RequestParam String radio,
-      @RequestParam String checkbox,
+      @RequestParam(defaultValue = "off") String checkbox,
       @RequestParam String shortInput,
       @RequestParam String readOnlyInput) {
-    if (select.equals("option1") || select.equals("option2")) {
-      return failed(this).build();
-    }
-    if (radio.equals("option1") || radio.equals("option2")) {
-      return failed(this).build();
-    }
-    if (checkbox.equals("on") || checkbox.equals("off")) {
-      return failed(this).build();
-    }
-    if (shortInput.length() <= 5) {
-      return failed(this).build();
-    }
-    if ("change".equals(readOnlyInput)) {
+    if (!(select.equals("option1") || select.equals("option2"))
+        || !(radio.equals("option1") || radio.equals("option2"))
+        || !(checkbox.equals("on") || checkbox.equals("off"))
+        || shortInput.length() > 5
+        || !"change".equals(readOnlyInput)) {
       return failed(this).build();
     }
     return success(this).build();
