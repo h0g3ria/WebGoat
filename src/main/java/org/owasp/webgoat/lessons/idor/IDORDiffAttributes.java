@@ -27,8 +27,8 @@ public class IDORDiffAttributes implements AssignmentEndpoint {
   @ResponseBody
   public AttackResult completed(@RequestParam String attributes) {
     attributes = attributes.trim();
-    String[] diffAttribs = attributes.split(",");
-    if (diffAttribs.length < 2) {
+    String[] diffAttribs = attributes.split(",", -1);
+    if (diffAttribs.length != 2) {
       return failed(this).feedback("idor.diff.attributes.missing").build();
     }
     if (diffAttribs[0].toLowerCase().trim().equals("userid")
