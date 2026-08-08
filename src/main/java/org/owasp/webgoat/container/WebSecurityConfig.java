@@ -18,6 +18,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 /** Security configuration for WebGoat. */
 @Configuration
@@ -58,7 +59,10 @@ public class WebSecurityConfig {
               oidc.loginPage("/login");
             })
         .logout(logout -> logout.deleteCookies("JSESSIONID").invalidateHttpSession(true))
-        .csrf(csrf -> csrf.disable())
+        .csrf(
+            csrf ->
+                csrf.requireCsrfProtectionMatcher(
+                    new AntPathRequestMatcher("/login", "POST")))
         .headers(headers -> headers.disable())
         .exceptionHandling(
             handling ->
