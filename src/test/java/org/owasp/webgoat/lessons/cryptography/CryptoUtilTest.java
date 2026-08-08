@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.fail;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.RSAKeyGenParameterSpec;
 import javax.xml.bind.DatatypeConverter;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ public class CryptoUtilTest {
     try {
       KeyPair keyPair = CryptoUtil.generateKeyPair();
       RSAPublicKey rsaPubKey = (RSAPublicKey) keyPair.getPublic();
+      assertThat(rsaPubKey.getPublicExponent()).isEqualTo(RSAKeyGenParameterSpec.F4);
       PrivateKey privateKey =
           CryptoUtil.getPrivateKeyFromPEM(CryptoUtil.getPrivateKeyInPEM(keyPair));
       String modulus = DatatypeConverter.printHexBinary(rsaPubKey.getModulus().toByteArray());
