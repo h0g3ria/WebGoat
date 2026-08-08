@@ -11,9 +11,11 @@ import static org.owasp.webgoat.container.assignments.AttackResultBuilder.failed
 import static org.owasp.webgoat.container.assignments.AttackResultBuilder.success;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.impl.TextCodec;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.Cookie;
@@ -136,8 +138,7 @@ public class JWTVotesEndpoint implements AssignmentEndpoint {
       value.setSerializationView(Views.GuestView.class);
     } else {
       try {
-        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);
-        Claims claims = (Claims) jwt.getBody();
+        Claims claims = parseAndVerifyToken(accessToken);
         String user = (String) claims.get("user");
         if ("Guest".equals(user) || !validUsers.contains(user)) {
           value.setSerializationView(Views.GuestView.class);
@@ -161,8 +162,7 @@ public class JWTVotesEndpoint implements AssignmentEndpoint {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     } else {
       try {
-        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);
-        Claims claims = (Claims) jwt.getBody();
+        Claims claims = parseAndVerifyToken(accessToken);
         String user = (String) claims.get("user");
         if (!validUsers.contains(user)) {
           return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -184,8 +184,7 @@ public class JWTVotesEndpoint implements AssignmentEndpoint {
       return failed(this).feedback("jwt-invalid-token").build();
     } else {
       try {
-        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);
-        Claims claims = (Claims) jwt.getBody();
+        Claims claims = parseAndVerifyToken(accessToken);
         boolean isAdmin = Boolean.valueOf(String.valueOf(claims.get("admin")));
         if (!isAdmin) {
           return failed(this).feedback("jwt-only-admin").build();
@@ -197,5 +196,14 @@ public class JWTVotesEndpoint implements AssignmentEndpoint {
         return failed(this).feedback("jwt-invalid-token").output(e.toString()).build();
       }
     }
+  }
+
+  private Claims parseAndVerifyToken(String accessToken) {
+    Jws<Claims> jwt =
+        Jwts.parser().setSigningKey(JWT_PASSWORD).parseClaimsJws(accessToken);
+    if (!SignatureAlgorithm.HS512.getValue().equals(jwt.getHeader().getAlgorithm())) {
+      throw new UnsupportedJwtException("Only HS512 signed JWTs are accepted");
+    }
+    return jwt.getBody();
   }
 }
