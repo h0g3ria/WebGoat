@@ -11,11 +11,13 @@ import org.owasp.webgoat.container.assignments.AssignmentEndpoint;
 import org.owasp.webgoat.container.assignments.AssignmentHints;
 import org.owasp.webgoat.container.assignments.AttackResult;
 import org.owasp.webgoat.container.session.LessonSession;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @AssignmentHints({
@@ -43,6 +45,12 @@ public class IDOREditOtherProfile implements AssignmentEndpoint {
       @PathVariable("userId") String userId, @RequestBody UserProfile userSubmittedProfile) {
 
     String authUserId = (String) userSessionData.getValue("idor-authenticated-user-id");
+    if (authUserId == null
+        || !authUserId.equals(userId)
+        || (userSubmittedProfile.getUserId() != null
+            && !authUserId.equals(userSubmittedProfile.getUserId()))) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+    }
     // this is where it starts ... accepting the user submitted ID and assuming it will be the same
     // as the logged in userId and not checking for proper authorization
     // Certain roles can sometimes edit others' profiles, but we shouldn't just assume that and let
