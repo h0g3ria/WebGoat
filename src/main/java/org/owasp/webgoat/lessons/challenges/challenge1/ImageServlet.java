@@ -7,8 +7,10 @@ package org.owasp.webgoat.lessons.challenges.challenge1;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Random;
+import java.security.SecureRandom;
+import javax.imageio.ImageIO;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ImageServlet {
 
-  public static final int PINCODE = new Random().nextInt(10000);
+  public static final int PINCODE = new SecureRandom().nextInt(10000);
 
   @RequestMapping(
       method = {GET, POST},
@@ -26,18 +28,13 @@ public class ImageServlet {
       produces = MediaType.IMAGE_PNG_VALUE)
   @ResponseBody
   public byte[] logo() throws IOException {
-    byte[] in =
-        new ClassPathResource("lessons/challenges/images/webgoat2.png")
-            .getInputStream()
-            .readAllBytes();
-
-    String pincode = String.format("%04d", PINCODE);
-
-    in[81216] = (byte) pincode.charAt(0);
-    in[81217] = (byte) pincode.charAt(1);
-    in[81218] = (byte) pincode.charAt(2);
-    in[81219] = (byte) pincode.charAt(3);
-
-    return in;
+    var resource = new ClassPathResource("lessons/challenges/images/webgoat2.png");
+    try (var input = resource.getInputStream(); var output = new ByteArrayOutputStream()) {
+      var image = ImageIO.read(input);
+      if (image == null || !ImageIO.write(image, "png", output)) {
+        throw new IOException("Unable to decode challenge logo");
+      }
+      return output.toByteArray();
+    }
   }
 }
