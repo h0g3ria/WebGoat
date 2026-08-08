@@ -48,6 +48,8 @@ public class IDORLogin implements AssignmentEndpoint {
   @ResponseBody
   public AttackResult completed(@RequestParam String username, @RequestParam String password) {
     initIDORInfo();
+    lessonSession.setValue("idor-authenticated-as", null);
+    lessonSession.setValue("idor-authenticated-user-id", null);
 
     if (idorUserInfo.containsKey(username)) {
       if ("tom".equals(username) && idorUserInfo.get("tom").get("password").equals(password)) {
