@@ -8,12 +8,15 @@ import static org.owasp.webgoat.container.assignments.AttackResultBuilder.failed
 import static org.owasp.webgoat.container.assignments.AttackResultBuilder.success;
 import static org.owasp.webgoat.lessons.missingac.MissingFunctionAC.PASSWORD_SALT_ADMIN;
 
+import org.owasp.webgoat.container.CurrentUsername;
 import org.owasp.webgoat.container.assignments.AssignmentEndpoint;
 import org.owasp.webgoat.container.assignments.AssignmentHints;
 import org.owasp.webgoat.container.assignments.AttackResult;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @AssignmentHints({
@@ -38,9 +41,11 @@ public class MissingFunctionACYourHashAdmin implements AssignmentEndpoint {
       path = "/access-control/user-hash-fix",
       produces = {"application/json"})
   @ResponseBody
-  public AttackResult admin(String userHash) {
-    // current user should be in the DB
-    // if not admin then return 403
+  public AttackResult admin(String userHash, @CurrentUsername String username) {
+    var currentUser = userRepository.findByUsername(username);
+    if (currentUser == null || !currentUser.isAdmin()) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+    }
 
     var user = userRepository.findByUsername("Jerry");
     var displayUser = new DisplayUser(user, PASSWORD_SALT_ADMIN);
