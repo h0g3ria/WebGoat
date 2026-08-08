@@ -80,14 +80,6 @@ public class ForgedReviews implements AssignmentEndpoint {
         (request.getHeader("referer") == null) ? "NULL" : request.getHeader("referer");
     final String[] refererArr = referer.split("/");
 
-    Review review = new Review();
-    review.setText(reviewText);
-    review.setDateTime(LocalDateTime.now().format(fmt));
-    review.setUser(username);
-    review.setStars(stars);
-    var reviews = userReviews.getOrDefault(username, new ArrayList<>());
-    reviews.add(review);
-    userReviews.put(username, reviews);
     // short-circuit
     if (validateReq == null || !validateReq.equals(weakAntiCSRF)) {
       return failed(this).feedback("csrf-you-forgot-something").build();
@@ -96,6 +88,14 @@ public class ForgedReviews implements AssignmentEndpoint {
     if (referer != "NULL" && refererArr[2].equals(host)) {
       return failed(this).feedback("csrf-same-host").build();
     } else {
+      Review review = new Review();
+      review.setText(reviewText);
+      review.setDateTime(LocalDateTime.now().format(fmt));
+      review.setUser(username);
+      review.setStars(stars);
+      var reviews = userReviews.getOrDefault(username, new ArrayList<>());
+      reviews.add(review);
+      userReviews.put(username, reviews);
       return success(this)
           .feedback("csrf-review.success")
           .build(); // feedback("xss-stored-comment-failure")
