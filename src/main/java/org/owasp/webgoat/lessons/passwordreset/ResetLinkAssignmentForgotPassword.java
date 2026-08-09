@@ -35,6 +35,7 @@ public class ResetLinkAssignmentForgotPassword implements AssignmentEndpoint {
   private final String webWolfHost;
   private final String webWolfPort;
   private final String webWolfURL;
+  private final String webGoatURL;
   private final String webWolfMailURL;
 
   public ResetLinkAssignmentForgotPassword(
@@ -42,11 +43,13 @@ public class ResetLinkAssignmentForgotPassword implements AssignmentEndpoint {
       @Value("${webwolf.host}") String webWolfHost,
       @Value("${webwolf.port}") String webWolfPort,
       @Value("${webwolf.url}") String webWolfURL,
+      @Value("${webgoat.url}") String webGoatURL,
       @Value("${webwolf.mail.url}") String webWolfMailURL) {
     this.restTemplate = restTemplate;
     this.webWolfHost = webWolfHost;
     this.webWolfPort = webWolfPort;
     this.webWolfURL = webWolfURL;
+    this.webGoatURL = webGoatURL;
     this.webWolfMailURL = webWolfMailURL;
   }
 
@@ -58,13 +61,13 @@ public class ResetLinkAssignmentForgotPassword implements AssignmentEndpoint {
     ResetLinkAssignment.resetLinks.add(resetLink);
     String host = request.getHeader(HttpHeaders.HOST);
     if (ResetLinkAssignment.TOM_EMAIL.equals(email)
-        && (host.contains(webWolfPort)
-            && host.contains(webWolfHost))) { // User indeed changed the host header.
+        && (webWolfHost + ":" + webWolfPort).equalsIgnoreCase(host)) {
+      // The exact WebWolf authority is used by the lesson to simulate Tom following the link.
       ResetLinkAssignment.userToTomResetLink.put(username, resetLink);
       fakeClickingLinkEmail(webWolfURL, resetLink);
     } else {
       try {
-        sendMailToUser(email, host, resetLink);
+        sendMailToUser(email, resetLink);
       } catch (Exception e) {
         return failed(this).output("E-mail can't be send. please try again.").build();
       }
@@ -73,13 +76,13 @@ public class ResetLinkAssignmentForgotPassword implements AssignmentEndpoint {
     return success(this).feedback("email.send").feedbackArgs(email).build();
   }
 
-  private void sendMailToUser(String email, String host, String resetLink) {
+  private void sendMailToUser(String email, String resetLink) {
     int index = email.indexOf("@");
     String username = email.substring(0, index == -1 ? email.length() : index);
     PasswordResetEmail mail =
         PasswordResetEmail.builder()
             .title("Your password reset link")
-            .contents(String.format(ResetLinkAssignment.TEMPLATE, host, resetLink))
+            .contents(String.format(ResetLinkAssignment.TEMPLATE, webGoatURL, resetLink))
             .sender("password-reset@webgoat-cloud.net")
             .recipient(username)
             .build();
