@@ -45,7 +45,8 @@ public class MailboxController {
 
   @DeleteMapping("/mail")
   @ResponseStatus(HttpStatus.ACCEPTED)
-  public void deleteAllMail() {
-    mailboxRepository.deleteAll();
+  public void deleteAllMail(Authentication authentication) {
+    mailboxRepository.deleteAll(
+        mailboxRepository.findByRecipientOrderByTimeDesc(authentication.getName()));
   }
 }
