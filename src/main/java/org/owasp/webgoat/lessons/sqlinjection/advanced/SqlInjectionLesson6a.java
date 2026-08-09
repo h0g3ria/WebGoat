@@ -8,6 +8,7 @@ import static org.owasp.webgoat.container.assignments.AttackResultBuilder.failed
 import static org.owasp.webgoat.container.assignments.AttackResultBuilder.success;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -42,9 +43,27 @@ public class SqlInjectionLesson6a implements AssignmentEndpoint {
   @PostMapping("/SqlInjectionAdvanced/attack6a")
   @ResponseBody
   public AttackResult completed(@RequestParam(value = "userid_6a") String userId) {
-    return injectableQuery(userId);
-    // The answer: Smith' union select userid,user_name, password,cookie,cookie, cookie,userid from
-    // user_system_data --
+    String query = "SELECT * FROM user_data WHERE last_name = ?";
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
+      statement.setString(1, userId);
+
+      try (ResultSet results = statement.executeQuery()) {
+        if (!results.first()) {
+          return failed(this)
+              .feedback("sql-injection.advanced.6a.no.results")
+              .output(YOUR_QUERY_WAS + query)
+              .build();
+        }
+
+        String output = SqlInjectionLesson5a.writeTable(results, results.getMetaData());
+        return failed(this).output(output + YOUR_QUERY_WAS + query).build();
+      }
+    } catch (SQLException e) {
+      return failed(this).output(e.getMessage() + YOUR_QUERY_WAS + query).build();
+    }
   }
 
   public AttackResult injectableQuery(String accountName) {
