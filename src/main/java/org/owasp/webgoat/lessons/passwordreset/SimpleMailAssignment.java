@@ -9,8 +9,14 @@ import static org.owasp.webgoat.container.assignments.AttackResultBuilder.failed
 import static org.owasp.webgoat.container.assignments.AttackResultBuilder.informationMessage;
 import static org.owasp.webgoat.container.assignments.AttackResultBuilder.success;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import org.apache.commons.lang3.StringUtils;
+import java.util.Base64;
+import java.util.concurrent.ConcurrentHashMap;
 import org.owasp.webgoat.container.CurrentUsername;
 import org.owasp.webgoat.container.assignments.AssignmentEndpoint;
 import org.owasp.webgoat.container.assignments.AttackResult;
@@ -29,8 +35,12 @@ import org.springframework.web.client.RestTemplate;
  */
 @RestController
 public class SimpleMailAssignment implements AssignmentEndpoint {
+  private static final Duration RESET_PASSWORD_LIFETIME = Duration.ofMinutes(15);
+
   private final String webWolfURL;
-  private RestTemplate restTemplate;
+  private final RestTemplate restTemplate;
+  private final SecureRandom secureRandom = new SecureRandom();
+  private final ConcurrentHashMap<String, ResetPassword> resetPasswords = new ConcurrentHashMap<>();
 
   public SimpleMailAssignment(
       RestTemplate restTemplate, @Value("${webwolf.mail.url}") String webWolfURL) {
@@ -49,7 +59,11 @@ public class SimpleMailAssignment implements AssignmentEndpoint {
     String emailAddress = ofNullable(email).orElse("unknown@webgoat.org");
     String username = extractUsername(emailAddress);
 
-    if (username.equals(webGoatUsername) && StringUtils.reverse(username).equals(password)) {
+    ResetPassword resetPassword = resetPasswords.get(username);
+    if (username.equals(webGoatUsername)
+        && resetPassword != null
+        && resetPassword.isValid(password)
+        && resetPasswords.remove(username, resetPassword)) {
       return success(this).build();
     } else {
       return failed(this).feedbackArgs("password-reset-simple.password_incorrect").build();
@@ -73,6 +87,8 @@ public class SimpleMailAssignment implements AssignmentEndpoint {
 
   private AttackResult sendEmail(String username, String email, String webGoatUsername) {
     if (username.equals(webGoatUsername)) {
+      ResetPassword resetPassword = newResetPassword();
+      resetPasswords.put(username, resetPassword);
       PasswordResetEmail mailEvent =
           PasswordResetEmail.builder()
               .recipient(username)
@@ -80,12 +96,13 @@ public class SimpleMailAssignment implements AssignmentEndpoint {
               .time(LocalDateTime.now())
               .contents(
                   "Thanks for resetting your password, your new password is: "
-                      + StringUtils.reverse(username))
+                      + resetPassword.value())
               .sender("webgoat@owasp.org")
               .build();
       try {
         restTemplate.postForEntity(webWolfURL, mailEvent, Object.class);
       } catch (RestClientException e) {
+        resetPasswords.remove(username, resetPassword);
         return informationMessage(this)
             .feedback("password-reset-simple.email_failed")
             .output(e.getMessage())
@@ -100,6 +117,21 @@ public class SimpleMailAssignment implements AssignmentEndpoint {
           .feedback("password-reset-simple.email_mismatch")
           .feedbackArgs(username)
           .build();
+    }
+  }
+
+  private ResetPassword newResetPassword() {
+    byte[] randomBytes = new byte[32];
+    secureRandom.nextBytes(randomBytes);
+    String value = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    return new ResetPassword(value, Instant.now().plus(RESET_PASSWORD_LIFETIME));
+  }
+
+  private record ResetPassword(String value, Instant expiresAt) {
+    private boolean isValid(String candidate) {
+      return Instant.now().isBefore(expiresAt)
+          && MessageDigest.isEqual(
+              value.getBytes(StandardCharsets.UTF_8), candidate.getBytes(StandardCharsets.UTF_8));
     }
   }
 }
