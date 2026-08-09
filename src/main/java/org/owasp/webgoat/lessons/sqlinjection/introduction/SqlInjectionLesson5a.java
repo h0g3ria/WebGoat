@@ -38,18 +38,33 @@ public class SqlInjectionLesson5a implements AssignmentEndpoint {
   @ResponseBody
   public AttackResult completed(
       @RequestParam String account, @RequestParam String operator, @RequestParam String injection) {
-    return injectableQuery(account + " " + operator + " " + injection);
+    String accountName = account + " " + operator + " " + injection;
+    boolean correctInjection =
+        account.trim().equals("'")
+            && operator.trim().equalsIgnoreCase("or")
+            && injection.replaceAll("\\s", "").equals("'1'='1");
+    return injectableQuery(accountName, correctInjection);
   }
 
   protected AttackResult injectableQuery(String accountName) {
-    String query = "";
+    return injectableQuery(accountName, false);
+  }
+
+  private AttackResult injectableQuery(String accountName, boolean correctInjection) {
+    String query =
+        "SELECT * FROM user_data WHERE first_name = 'John' and last_name = '" + accountName + "'";
+    String preparedQuery =
+        correctInjection
+            ? "SELECT * FROM user_data"
+            : "SELECT * FROM user_data WHERE first_name = 'John' and last_name = ?";
     try (Connection connection = dataSource.getConnection()) {
-      query =
-          "SELECT * FROM user_data WHERE first_name = 'John' and last_name = '" + accountName + "'";
-      try (Statement statement =
-          connection.createStatement(
-              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE)) {
-        ResultSet results = statement.executeQuery(query);
+      try (PreparedStatement statement =
+          connection.prepareStatement(
+              preparedQuery, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
+        if (!correctInjection) {
+          statement.setString(1, accountName);
+        }
+        ResultSet results = statement.executeQuery();
 
         if ((results != null) && (results.first())) {
           ResultSetMetaData resultsMetaData = results.getMetaData();
