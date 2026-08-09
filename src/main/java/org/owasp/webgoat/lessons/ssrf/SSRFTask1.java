@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 @AssignmentHints({"ssrf.hint1", "ssrf.hint2"})
 public class SSRFTask1 implements AssignmentEndpoint {
 
+  private static final String TOM_IMAGE = "images/tom.png";
+  private static final String JERRY_IMAGE = "images/jerry.png";
+
   @PostMapping("/SSRF/task1")
   @ResponseBody
   public AttackResult completed(@RequestParam String url) {
@@ -29,12 +32,12 @@ public class SSRFTask1 implements AssignmentEndpoint {
     try {
       StringBuilder html = new StringBuilder();
 
-      if (url.matches("images/tom\\.png")) {
+      if (TOM_IMAGE.equals(url)) {
         html.append(
             "<img class=\"image\" alt=\"Tom\" src=\"images/tom.png\" width=\"25%\""
                 + " height=\"25%\">");
         return failed(this).feedback("ssrf.tom").output(html.toString()).build();
-      } else if (url.matches("images/jerry\\.png")) {
+      } else if (JERRY_IMAGE.equals(url)) {
         html.append(
             "<img class=\"image\" alt=\"Jerry\" src=\"images/jerry.png\" width=\"25%\""
                 + " height=\"25%\">");
