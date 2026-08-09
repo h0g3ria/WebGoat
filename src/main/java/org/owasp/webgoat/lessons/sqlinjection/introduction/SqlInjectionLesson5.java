@@ -9,9 +9,7 @@ import static org.owasp.webgoat.container.assignments.AttackResultBuilder.succes
 
 import jakarta.annotation.PostConstruct;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import org.owasp.webgoat.container.LessonDataSource;
 import org.owasp.webgoat.container.assignments.AssignmentEndpoint;
 import org.owasp.webgoat.container.assignments.AssignmentHints;
@@ -58,11 +56,14 @@ public class SqlInjectionLesson5 implements AssignmentEndpoint {
   }
 
   protected AttackResult injectableQuery(String query) {
+    if (!isGrantQuery(query)) {
+      return failed(this).output("Your query was: " + query).build();
+    }
+
     try (Connection connection = dataSource.getConnection()) {
-      try (Statement statement =
-          connection.createStatement(
-              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE)) {
-        statement.executeQuery(query);
+      try (var statement =
+          connection.prepareStatement("GRANT SELECT ON grant_rights TO unauthorized_user")) {
+        statement.execute();
         if (checkSolution(connection)) {
           return success(this).build();
         }
@@ -74,6 +75,19 @@ public class SqlInjectionLesson5 implements AssignmentEndpoint {
               this.getClass().getName() + " : " + e.getMessage() + "<br> Your query was: " + query)
           .build();
     }
+  }
+
+  private boolean isGrantQuery(String query) {
+    if (query == null) {
+      return false;
+    }
+
+    var normalizedQuery = query.trim();
+    if (normalizedQuery.endsWith(";")) {
+      normalizedQuery = normalizedQuery.substring(0, normalizedQuery.length() - 1).trim();
+    }
+    return normalizedQuery.equalsIgnoreCase(
+        "GRANT SELECT ON grant_rights TO unauthorized_user");
   }
 
   private boolean checkSolution(Connection connection) {
