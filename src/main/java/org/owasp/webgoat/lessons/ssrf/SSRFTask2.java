@@ -9,6 +9,8 @@ import static org.owasp.webgoat.container.assignments.AttackResultBuilder.succes
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
 @AssignmentHints({"ssrf.hint3"})
 public class SSRFTask2 implements AssignmentEndpoint {
 
+  private static final String ALLOWED_HOST = "ifconfig.pro";
+  private static final String ALLOWED_URL = "http://" + ALLOWED_HOST;
+
   @PostMapping("/SSRF/task2")
   @ResponseBody
   public AttackResult completed(@RequestParam String url) {
@@ -31,9 +36,9 @@ public class SSRFTask2 implements AssignmentEndpoint {
   }
 
   protected AttackResult furBall(String url) {
-    if (url.matches("http://ifconfig\\.pro")) {
+    if (ALLOWED_URL.equals(url)) {
       String html;
-      try (InputStream in = new URL(url).openStream()) {
+      try (InputStream in = openAllowedConnection()) {
         html =
             new String(in.readAllBytes(), StandardCharsets.UTF_8)
                 .replaceAll("\n", "<br>"); // Otherwise the \n gets escaped in the response
@@ -49,6 +54,27 @@ public class SSRFTask2 implements AssignmentEndpoint {
     }
     var html = "<img class=\"image\" alt=\"image post\" src=\"images/cat.jpg\">";
     return getFailedResult(html);
+  }
+
+  private InputStream openAllowedConnection() throws IOException {
+    for (InetAddress address : InetAddress.getAllByName(ALLOWED_HOST)) {
+      if (address.isAnyLocalAddress()
+          || address.isLoopbackAddress()
+          || address.isLinkLocalAddress()
+          || address.isSiteLocalAddress()
+          || address.isMulticastAddress()) {
+        throw new IOException("The configured host resolves to a non-public address");
+      }
+    }
+
+    HttpURLConnection connection = (HttpURLConnection) new URL(ALLOWED_URL).openConnection();
+    connection.setInstanceFollowRedirects(false);
+    int status = connection.getResponseCode();
+    if (status >= 300 && status < 400) {
+      connection.disconnect();
+      throw new IOException("Redirects are not allowed");
+    }
+    return connection.getInputStream();
   }
 
   private AttackResult getFailedResult(String errorMsg) {
