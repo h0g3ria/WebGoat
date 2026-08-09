@@ -8,6 +8,8 @@ import static org.owasp.webgoat.container.assignments.AttackResultBuilder.failed
 import static org.owasp.webgoat.container.assignments.AttackResultBuilder.success;
 
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.mapper.CannotResolveClassException;
+import com.thoughtworks.xstream.mapper.MapperWrapper;
 import org.apache.commons.lang3.StringUtils;
 import org.owasp.webgoat.container.assignments.AssignmentEndpoint;
 import org.owasp.webgoat.container.assignments.AssignmentHints;
@@ -23,7 +25,22 @@ public class VulnerableComponentsLesson implements AssignmentEndpoint {
 
   @PostMapping("/VulnerableComponents/attack1")
   public @ResponseBody AttackResult completed(@RequestParam String payload) {
-    XStream xstream = new XStream();
+    XStream xstream =
+        new XStream() {
+          @Override
+          protected MapperWrapper wrapMapper(MapperWrapper next) {
+            return new MapperWrapper(next) {
+              @Override
+              public Class realClass(String elementName) {
+                Class type = super.realClass(elementName);
+                if (!ContactImpl.class.equals(type)) {
+                  throw new CannotResolveClassException(elementName);
+                }
+                return type;
+              }
+            };
+          }
+        };
     xstream.setClassLoader(Contact.class.getClassLoader());
     xstream.alias("contact", ContactImpl.class);
     xstream.ignoreUnknownElements();
