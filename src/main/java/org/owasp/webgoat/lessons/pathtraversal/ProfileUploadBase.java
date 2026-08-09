@@ -48,7 +48,7 @@ public class ProfileUploadBase implements AssignmentEndpoint {
     File uploadDirectory = cleanupAndCreateDirectoryForUser(username);
 
     try {
-      var uploadedFile = new File(uploadDirectory, fullName);
+      var uploadedFile = resolveUploadedFile(uploadDirectory, fullName);
       uploadedFile.createNewFile();
       FileCopyUtils.copy(file.getBytes(), uploadedFile);
 
@@ -63,6 +63,10 @@ public class ProfileUploadBase implements AssignmentEndpoint {
     } catch (IOException e) {
       return failed(this).output(e.getMessage()).build();
     }
+  }
+
+  protected File resolveUploadedFile(File uploadDirectory, String fullName) throws IOException {
+    return new File(uploadDirectory, fullName);
   }
 
   @SneakyThrows

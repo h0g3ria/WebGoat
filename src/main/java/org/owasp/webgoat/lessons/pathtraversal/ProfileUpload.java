@@ -7,6 +7,9 @@ package org.owasp.webgoat.lessons.pathtraversal;
 import static org.springframework.http.MediaType.ALL_VALUE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 import org.owasp.webgoat.container.CurrentUsername;
 import org.owasp.webgoat.container.assignments.AssignmentHints;
 import org.owasp.webgoat.container.assignments.AttackResult;
@@ -41,6 +44,16 @@ public class ProfileUpload extends ProfileUploadBase {
       @RequestParam(value = "fullName", required = false) String fullName,
       @CurrentUsername String username) {
     return super.execute(file, fullName, username);
+  }
+
+  @Override
+  protected File resolveUploadedFile(File uploadDirectory, String fullName) throws IOException {
+    Path fixedRoot = uploadDirectory.getCanonicalFile().toPath();
+    Path destination = new File(uploadDirectory, fullName).getCanonicalFile().toPath();
+    if (destination.equals(fixedRoot) || !destination.startsWith(fixedRoot)) {
+      throw new IOException("Profile image must remain inside the profile upload directory");
+    }
+    return destination.toFile();
   }
 
   @GetMapping("/PathTraversal/profile-picture")
