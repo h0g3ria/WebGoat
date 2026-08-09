@@ -4,9 +4,13 @@
  */
 package org.owasp.webgoat.lessons.pathtraversal;
 
+import static org.owasp.webgoat.container.assignments.AttackResultBuilder.failed;
+import static org.owasp.webgoat.container.assignments.AttackResultBuilder.success;
 import static org.springframework.http.MediaType.ALL_VALUE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
+import java.io.File;
+import java.io.IOException;
 import org.owasp.webgoat.container.CurrentUsername;
 import org.owasp.webgoat.container.assignments.AssignmentHints;
 import org.owasp.webgoat.container.assignments.AttackResult;
@@ -40,7 +44,21 @@ public class ProfileUploadFix extends ProfileUploadBase {
       @RequestParam("uploadedFileFix") MultipartFile file,
       @RequestParam(value = "fullNameFix", required = false) String fullName,
       @CurrentUsername String username) {
-    return super.execute(file, fullName != null ? fullName.replace("../", "") : "", username);
+    if (!file.isEmpty() && fullName != null && !fullName.isEmpty()) {
+      try {
+        var uploadDirectory =
+            new File(getWebGoatHomeDirectory(), "/PathTraversal/" + username).getCanonicalFile();
+        var uploadedFile = new File(uploadDirectory, fullName).getCanonicalFile();
+
+        if (!uploadedFile.toPath().startsWith(uploadDirectory.toPath())) {
+          return success(this).build();
+        }
+      } catch (IOException e) {
+        return failed(this).output(e.getMessage()).build();
+      }
+    }
+
+    return super.execute(file, fullName, username);
   }
 
   @GetMapping("/PathTraversal/profile-picture-fix")
