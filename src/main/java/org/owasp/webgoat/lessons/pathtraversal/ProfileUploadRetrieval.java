@@ -97,8 +97,15 @@ public class ProfileUploadRetrieval implements AssignmentEndpoint {
     }
     try {
       var id = request.getParameter("id");
+      var picturesRoot = catPicturesDirectory.getCanonicalFile().toPath();
       var catPicture =
-          new File(catPicturesDirectory, (id == null ? RandomUtils.nextInt(1, 11) : id) + ".jpg");
+          new File(catPicturesDirectory, (id == null ? RandomUtils.nextInt(1, 11) : id) + ".jpg")
+              .getCanonicalFile();
+
+      if (!catPicture.toPath().startsWith(picturesRoot)) {
+        return ResponseEntity.badRequest()
+            .body("Requested picture is outside the picture directory");
+      }
 
       if (catPicture.getName().toLowerCase().contains("path-traversal-secret.jpg")) {
         return ResponseEntity.ok()
